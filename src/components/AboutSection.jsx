@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
@@ -17,12 +17,19 @@ const WoofyHoverImage = dynamic(
 
 export default function AboutSection() {
   const sectionRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useGSAP(() => {
     // Scroll animations are handled by AnimatedContent wrappers
   }, { scope: sectionRef });
 
   useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
     // Preload images to prevent lag when scrolling into view on mobile
     const img1 = new Image();
     img1.src = "/my-images/sketch.jpeg";
@@ -44,18 +51,26 @@ export default function AboutSection() {
           <AnimatedContent distance={150} direction="vertical" duration={1.2} delay={0} scrub={true}>
             <div className="relative rotate-[-3deg] bg-[#fdfdfd] rounded-3xl p-3 sm:p-4 shadow-[0_20px_50px_rgba(0,0,0,0.08)] border border-gray-100">
               <div className="rounded-2xl overflow-hidden bg-white aspect-[4/3] relative w-full">
-                <WoofyHoverImage
-                  src="/my-images/sketch.jpeg"
-                  hoverSrc="/my-images/image-3.jpeg"
-                  alt="Ehtisham Hashim"
-                  width="100%"
-                  height="100%"
-                  effectType="inversion"
-                  maskRadius={0.35}
-                  turbulenceIntensity={0.2}
-                  animationSpeed={0.8}
-                  className="w-full h-full object-cover absolute top-0 left-0"
-                />
+                {!isMobile ? (
+                  <WoofyHoverImage
+                    src="/my-images/sketch.jpeg"
+                    hoverSrc="/my-images/image-3.jpeg"
+                    alt="Ehtisham Hashim"
+                    width="100%"
+                    height="100%"
+                    effectType="inversion"
+                    maskRadius={0.35}
+                    turbulenceIntensity={0.2}
+                    animationSpeed={0.8}
+                    className="w-full h-full object-cover absolute top-0 left-0"
+                  />
+                ) : (
+                  <img
+                    src="/my-images/sketch.jpeg"
+                    alt="Ehtisham Hashim"
+                    className="w-full h-full object-cover absolute top-0 left-0"
+                  />
+                )}
               </div>
             </div>
           </AnimatedContent>

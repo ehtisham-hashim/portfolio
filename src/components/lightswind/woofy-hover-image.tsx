@@ -361,21 +361,32 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
       renderer.domElement.style.zIndex = '1';
 
       // Animation loop
+      let isVisible = true;
       const animate = () => {
         if (!uniformsRef.current || !rendererRef.current || !sceneRef.current) return;
 
-        lerpedMouseRef.current.lerp(targetMouseRef.current, 0.1);
-        uniformsRef.current.u_mouse.value.copy(lerpedMouseRef.current);
+        if (isVisible) {
+          lerpedMouseRef.current.lerp(targetMouseRef.current, 0.1);
+          uniformsRef.current.u_mouse.value.copy(lerpedMouseRef.current);
 
-        if (isMouseInsideRef.current) {
-          uniformsRef.current.u_time.value += 0.01 * animationSpeed;
+          if (isMouseInsideRef.current) {
+            uniformsRef.current.u_time.value += 0.01 * animationSpeed;
+          }
+
+          rendererRef.current.render(sceneRef.current, camera);
         }
-
-        rendererRef.current.render(sceneRef.current, camera);
         animationIdRef.current = requestAnimationFrame(animate);
       };
 
       animate();
+
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          isVisible = entry.isIntersecting;
+        });
+      }, { threshold: 0 });
+      observer.observe(container);
+      (container as any)._observer = observer;
       }; // end setupScene
 
       if (hoverSrc) {
@@ -476,6 +487,9 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
       
       if (rendererRef.current) {
         rendererRef.current.dispose();
+      }
+      if (containerRef.current && (containerRef.current as any)._observer) {
+        (containerRef.current as any)._observer.disconnect();
       }
     };
   }, [initializeEffect, handleMouseMove]);
