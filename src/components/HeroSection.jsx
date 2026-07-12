@@ -55,7 +55,7 @@ export default function HeroSection() {
   const tY3 = useTransform(smoothMouseY, [-1, 1], [-maxOffset * 0.8, maxOffset * 0.8]);
 
   return (
-    <section className="relative w-full min-h-screen bg-white flex items-start justify-center pt-[12vh] pb-12 overflow-hidden">
+    <section className="main-section relative w-full min-h-screen bg-white flex items-start justify-center pt-[12vh] pb-12 overflow-hidden">
       <div className="relative w-[90vw] h-[80vh] md:h-[100vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl border border-slate-200 bg-white flex items-center justify-center">
         <div className="absolute inset-0 w-full h-full">
           <Iridescence color={IRIDESCENCE_COLOR} mouseReact={false} amplitude={0.2} speed={1.0} />

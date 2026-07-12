@@ -45,7 +45,7 @@ export default function AboutSection() {
     <section
       ref={sectionRef}
       id="about"
-      className="relative w-full min-h-screen bg-white overflow-hidden flex flex-col justify-center"
+      className="main-section relative w-full min-h-screen bg-white overflow-hidden flex flex-col justify-center"
     >
       {/* Title */}
       <div className="w-full text-center pt-10 pb-4">
