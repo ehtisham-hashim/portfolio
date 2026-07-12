@@ -27,6 +27,10 @@ export default function ScrollSnapper() {
       return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     }
 
+    function shouldSkipSnapping() {
+      return isMobileDevice();
+    }
+
     function setViewportHeight() {
       const vh = window.innerHeight * 0.01;
       document.documentElement.style.setProperty("--vh", vh + "px");
@@ -61,7 +65,7 @@ export default function ScrollSnapper() {
       const target = panelTops[currentTargetIndex];
       if (target !== scroll) {
         // blockOverflow = true, pauseScrollTrigger = true
-        snapTo(target, 0.4, 0, true, true);
+        snapTo(target, 0.8, 0, true, true);
       }
     }
 
@@ -94,7 +98,7 @@ export default function ScrollSnapper() {
       currentSnapTween = gsap.to(window, {
         scrollTo: targetY,
         duration: duration,
-        ease: "power2.out",
+        ease: "power3.inOut",
         onComplete: () => {
           if (pauseScrollTrigger) {
             ScrollTrigger.enable();
@@ -114,6 +118,7 @@ export default function ScrollSnapper() {
     }
 
     const handleTouchStart = (e) => {
+      if (shouldSkipSnapping()) return;
       if (isSnapping) {
         if (e.cancelable) e.preventDefault();
         return;
@@ -123,6 +128,7 @@ export default function ScrollSnapper() {
     };
 
     const handleTouchMove = (e) => {
+      if (shouldSkipSnapping()) return;
       const currentY = e.touches[0].clientY;
       const delta = lastTouchY - currentY;
       if (Math.abs(delta) > 5) {
@@ -134,6 +140,7 @@ export default function ScrollSnapper() {
     };
 
     const handleTouchEnd = (e) => {
+      if (shouldSkipSnapping()) return;
       if (isSnapping) {
         if (e.cancelable) e.preventDefault();
         return;
@@ -145,6 +152,7 @@ export default function ScrollSnapper() {
     };
 
     const handleKeyDown = (e) => {
+      if (shouldSkipSnapping()) return;
       if (
         ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(
           e.key
@@ -198,6 +206,7 @@ export default function ScrollSnapper() {
     };
 
     const handleWheel = (e) => {
+      if (shouldSkipSnapping()) return;
       if (isSnapping) {
         e.preventDefault();
         return;

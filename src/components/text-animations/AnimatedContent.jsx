@@ -23,6 +23,7 @@ const AnimatedContent = ({
   onComplete,
   onDisappearanceComplete,
   className = '',
+  scrub = false,
   ...props
 }) => {
   const ref = useRef(null);
@@ -79,8 +80,11 @@ const AnimatedContent = ({
       trigger: el,
       scroller: scrollerTarget || window,
       start: `top ${startPct}%`,
-      once: true,
-      onEnter: () => tl.play()
+      end: scrub ? "center center" : undefined,
+      scrub: scrub ? true : false,
+      once: scrub ? false : true,
+      animation: scrub ? tl : undefined,
+      onEnter: scrub ? undefined : () => tl.play()
     });
 
     return () => {
