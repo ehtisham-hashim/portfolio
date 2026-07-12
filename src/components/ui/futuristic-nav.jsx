@@ -2,15 +2,12 @@
 
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Home, Search, Bell, User, Settings, Bookmark } from "lucide-react";
+import { Home, User, Bookmark } from "lucide-react";
 
 const items = [
   { id: 0, icon: <Home size={24} />, label: "Home" },
-  { id: 1, icon: <Search size={24} />, label: "Search" },
-  { id: 2, icon: <Bell size={24} />, label: "Alerts" },
-  { id: 3, icon: <User size={24} />, label: "Profile" },
-  { id: 4, icon: <Bookmark size={24} />, label: "Saved" },
-  { id: 5, icon: <Settings size={24} />, label: "Settings" },
+  { id: 1, icon: <User size={24} />, label: "Profile" },
+  { id: 2, icon: <Bookmark size={24} />, label: "Saved" },
 ];
 
 const LumaBar = () => {
