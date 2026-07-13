@@ -23,10 +23,18 @@ export default function HeroSection() {
   const [step, setStep] = useState(0); // 0 = Ehtisham, 1 = MERN, 2 = PERN
   const ref = React.useRef(null);
   const isInView = useInView(ref, { margin: "200px" });
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    
     const timer = setInterval(() => setStep((s) => (s + 1) % 3), 2500);
-    return () => clearInterval(timer);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("resize", checkMobile);
+    };
   }, []);
 
   const mouseX = useMotionValue(0);
@@ -60,7 +68,7 @@ export default function HeroSection() {
     <section ref={ref} className="main-section relative w-full min-h-screen bg-white flex items-start justify-center pt-[12vh] pb-12 overflow-hidden">
       <div className="relative w-[90vw] h-[80vh] md:h-[100vh] rounded-[2rem] md:rounded-[3.5rem] overflow-hidden shadow-2xl border border-slate-200 bg-white flex items-center justify-center">
         <div className="absolute inset-0 w-full h-full">
-          {isInView && <Iridescence color={IRIDESCENCE_COLOR} mouseReact={false} amplitude={0.2} speed={1.0} />}
+          {isInView && !isMobile && <Iridescence color={IRIDESCENCE_COLOR} mouseReact={false} amplitude={0.2} speed={1.0} />}
         </div>
         
         {/* Images with Parallax Hover and Opacity Crossfade */}

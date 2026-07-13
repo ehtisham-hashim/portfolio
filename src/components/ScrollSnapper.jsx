@@ -28,7 +28,9 @@ export default function ScrollSnapper() {
     }
 
     function shouldSkipSnapping() {
-      return isMobileDevice();
+      const aboutSection = document.getElementById("about");
+      if (!aboutSection) return false;
+      return window.scrollY >= aboutSection.offsetTop - 5;
     }
 
     function setViewportHeight() {
