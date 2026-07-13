@@ -43,6 +43,16 @@ export default function AboutSection() {
       id="about"
       className="main-section relative w-full min-h-screen bg-white overflow-hidden flex flex-col justify-center py-20"
     >
+      <div className="w-full max-w-5xl mx-auto px-4 md:px-8">
+        <div className="text-center mb-16">
+          <div className="flex items-center justify-center gap-4">
+            <div className="h-px w-12 bg-gray-300"></div>
+            <span className="text-gray-500 uppercase tracking-widest text-sm">About</span>
+            <div className="h-px w-12 bg-gray-300"></div>
+          </div>
+        </div>
+      </div>
+
       <div className="w-full max-w-5xl mx-auto px-4 md:px-8 flex flex-col lg:flex-row gap-16 lg:gap-20 items-center lg:items-center">
         
         {/* Left Column */}

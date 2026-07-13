@@ -1,6 +1,7 @@
 import HeroSection from "@/components/HeroSection";
 import AboutSection from "@/components/AboutSection";
 import TechStackSection from "@/components/TechStackSection";
+import ProjectsSection from "@/components/ProjectsSection";
 import TempSection from "@/components/TempSection";
 import LumaBar from "@/components/ui/futuristic-nav";
 import ScrollSnapper from "@/components/ScrollSnapper";
@@ -12,6 +13,7 @@ export default function Home() {
       <HeroSection />
       <AboutSection />
       <TechStackSection />
+      <ProjectsSection />
       <TempSection />
       <LumaBar />
     </main>

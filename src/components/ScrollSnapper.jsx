@@ -23,11 +23,8 @@ export default function ScrollSnapper() {
     let currentTargetIndex = -1;
     let snapperActive = true;
 
-    function isMobileDevice() {
-      return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    }
-
     function shouldSkipSnapping() {
+      if (window.innerWidth < 1024) return true;
       const aboutSection = document.getElementById("about");
       if (!aboutSection) return false;
       return window.scrollY >= aboutSection.offsetTop - 5;
@@ -113,11 +110,7 @@ export default function ScrollSnapper() {
       });
     }
 
-    if (isMobileDevice()) {
-      setViewportHeight();
-      window.addEventListener("resize", setViewportHeight);
-      window.addEventListener("orientationchange", setViewportHeight);
-    }
+
 
     const handleTouchStart = (e) => {
       if (shouldSkipSnapping()) return;
@@ -257,10 +250,6 @@ export default function ScrollSnapper() {
     window.addEventListener("wheel", handleWheel, { passive: false });
 
     return () => {
-      if (isMobileDevice()) {
-        window.removeEventListener("resize", setViewportHeight);
-        window.removeEventListener("orientationchange", setViewportHeight);
-      }
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);

@@ -40,7 +40,6 @@ void main() {
   d += uTime * 0.5 * uSpeed;
   vec3 col = vec3(cos(uv * vec2(d, a)) * 0.6 + 0.4, cos(a + d) * 0.5 + 0.5);
   col = cos(col * cos(vec3(d, a, 2.5)) * 0.5 + 0.5) * uColor;
-  col = mix(vec3(0.878, 1.0, 1.0), col, 0.15);
   gl_FragColor = vec4(col, 1.0);
 }
 `;
@@ -57,16 +56,22 @@ export default function Iridescence({ color = [1, 1, 1], speed = 1.0, amplitude 
     gl.clearColor(1, 1, 1, 1);
 
     let program;
-
-    function resize() {
-      const scale = 1;
+    let resizeTimeout;
+    function doResize() {
+      const scale = window.innerWidth < 768 ? 0.5 : 1;
       renderer.setSize(ctn.offsetWidth * scale, ctn.offsetHeight * scale);
+      gl.canvas.style.width = '100%';
+      gl.canvas.style.height = '100%';
       if (program) {
-        program.uniforms.uResolution.value = new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height);
+        program.uniforms.uResolution.value = new Float32Array([gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height]);
       }
     }
+    function resize() {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(doResize, 200);
+    }
     window.addEventListener('resize', resize, false);
-    resize();
+    doResize();
 
     const geometry = new Triangle(gl);
     program = new Program(gl, {
@@ -109,6 +114,7 @@ export default function Iridescence({ color = [1, 1, 1], speed = 1.0, amplitude 
 
     return () => {
       cancelAnimationFrame(animateId);
+      clearTimeout(resizeTimeout);
       window.removeEventListener('resize', resize);
       if (mouseReact) {
         ctn.removeEventListener('mousemove', handleMouseMove);
