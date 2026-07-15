@@ -29,7 +29,7 @@ const DotField = memo(({
   const propsRef = useRef({});
   propsRef.current = { dotRadius, dotSpacing, cursorRadius, cursorForce, bulgeOnly, bulgeStrength, sparkle, waveAmplitude, gradientFrom, gradientTo };
   const rebuildRef = useRef(null);
-  const glowId = useId();
+  const glowId = useId().replace(/:/g, '');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -273,7 +273,7 @@ const DotField = memo(({
           cx="-9999"
           cy="-9999"
           r={glowRadius}
-          fill={`url(#${CSS.escape(glowId)})`}
+          fill={`url(#${glowId})`}
           style={{ opacity: 0, willChange: 'opacity' }} />
       </svg>
     </div>
