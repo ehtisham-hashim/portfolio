@@ -29,7 +29,7 @@ const projects = [
 
 export default function ProjectsSection() {
   return (
-    <section className="w-full bg-white py-24 flex flex-col items-center justify-center overflow-clip">
+    <section className="w-full bg-white pt-24 pb-8 flex flex-col items-center justify-center overflow-clip">
       <div className="text-center mb-16">
         <div className="flex items-center justify-center gap-4 mb-4">
           <div className="h-px w-12 bg-gray-300"></div>
