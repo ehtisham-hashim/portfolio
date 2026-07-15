@@ -1,6 +1,215 @@
 import React, { useEffect, useRef, useCallback } from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import * as THREE from 'three';
+
+const vertexShader = `
+  varying vec2 v_uv;
+  
+  void main() {
+    v_uv = uv;
+    gl_Position = vec4(position, 1.0);
+  }
+`;
+
+const fragmentShader = `
+  precision highp float;
+
+  uniform sampler2D u_texture;
+  uniform sampler2D u_hoverTexture;
+  uniform bool u_hasHoverTexture;
+  uniform vec2 u_mouse;
+  uniform float u_time;
+  uniform vec2 u_resolution;
+  uniform float u_radius;
+  uniform float u_speed;
+  uniform float u_imageAspect;
+  uniform float u_turbulenceIntensity;
+  uniform int u_effectType;
+  uniform vec3 u_effectColor1;
+  uniform vec3 u_effectColor2;
+  uniform float u_effectIntensity;
+  uniform bool u_invertMask;
+
+  varying vec2 v_uv;
+
+  vec3 hash33(vec3 p) {
+    p = fract(p * vec3(443.8975, 397.2973, 491.1871));
+    p += dot(p.zxy, p.yxz + 19.27);
+    return fract(vec3(p.x * p.y, p.z * p.x, p.y * p.z));
+  }
+
+  float simplex_noise(vec3 p) {
+    const float K1 = 0.333333333;
+    const float K2 = 0.166666667;
+    
+    vec3 i = floor(p + (p.x + p.y + p.z) * K1);
+    vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
+    
+    vec3 e = step(vec3(0.0), d0 - d0.yzx);
+    vec3 i1 = e * (1.0 - e.zxy);
+    vec3 i2 = 1.0 - e.zxy * (1.0 - e);
+    
+    vec3 d1 = d0 - (i1 - K2);
+    vec3 d2 = d0 - (i2 - K2 * 2.0);
+    vec3 d3 = d0 - (1.0 - 3.0 * K2);
+    
+    vec3 x0 = d0;
+    vec3 x1 = d1;
+    vec3 x2 = d2;
+    vec3 x3 = d3;
+    
+    vec4 h = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
+    vec4 n = h * h * h * h * vec4(
+      dot(x0, hash33(i) * 2.0 - 1.0),
+      dot(x1, hash33(i + i1) * 2.0 - 1.0),
+      dot(x2, hash33(i + i2) * 2.0 - 1.0),
+      dot(x3, hash33(i + 1.0) * 2.0 - 1.0)
+    );
+    
+    return 0.5 + 0.5 * 31.0 * dot(n, vec4(1.0));
+  }
+
+  vec2 curl(vec2 p, float time) {
+    const float epsilon = 0.001;
+    
+    float n1 = simplex_noise(vec3(p.x, p.y + epsilon, time));
+    float n2 = simplex_noise(vec3(p.x, p.y - epsilon, time));
+    float n3 = simplex_noise(vec3(p.x + epsilon, p.y, time));
+    float n4 = simplex_noise(vec3(p.x - epsilon, p.y, time));
+    
+    float x = (n2 - n1) / (2.0 * epsilon);
+    float y = (n4 - n3) / (2.0 * epsilon);
+    
+    return vec2(x, y);
+  }
+
+  float inkMarbling(vec2 p, float time, float intensity) {
+    float result = 0.0;
+    
+    vec2 flow = curl(p * 1.5, time * 0.1) * intensity * 2.0;
+    vec2 p1 = p + flow * 0.3;
+    result += simplex_noise(vec3(p1 * 2.0, time * 0.15)) * 0.5;
+    
+    vec2 flow2 = curl(p * 3.0 + vec2(sin(time * 0.2), cos(time * 0.15)), time * 0.2) * intensity;
+    vec2 p2 = p + flow2 * 0.2;
+    result += simplex_noise(vec3(p2 * 4.0, time * 0.25)) * 0.3;
+    
+    vec2 flow3 = curl(p * 6.0 + vec2(cos(time * 0.3), sin(time * 0.25)), time * 0.3) * intensity * 0.5;
+    vec2 p3 = p + flow3 * 0.1;
+    result += simplex_noise(vec3(p3 * 8.0, time * 0.4)) * 0.2;
+    
+    float dist = length(p - vec2(0.5));
+    float angle = atan(p.y - 0.5, p.x - 0.5);
+    float spiral = sin(dist * 15.0 - angle * 2.0 + time * 0.3) * 0.5 + 0.5;
+    
+    result = mix(result, spiral, 0.3);
+    result = result * 0.5 + 0.5;
+    
+    return result;
+  }
+
+  vec3 applySepia(vec3 color) {
+    float r = color.r * 0.393 + color.g * 0.769 + color.b * 0.189;
+    float g = color.r * 0.349 + color.g * 0.686 + color.b * 0.168;
+    float b = color.r * 0.272 + color.g * 0.534 + color.b * 0.131;
+    return vec3(r, g, b);
+  }
+
+  vec3 applyDuotone(vec3 color, vec3 color1, vec3 color2) {
+    float gray = dot(color, vec3(0.299, 0.587, 0.114));
+    return mix(color1, color2, gray);
+  }
+
+  vec3 applyPixelate(sampler2D tex, vec2 uv, float pixelSize) {
+    float dx = pixelSize * (1.0 / u_resolution.x);
+    float dy = pixelSize * (1.0 / u_resolution.y);
+    vec2 pixelatedUV = vec2(dx * floor(uv.x / dx), dy * floor(uv.y / dy));
+    return texture2D(tex, pixelatedUV).rgb;
+  }
+
+  vec3 applyBlur(sampler2D tex, vec2 uv, float blurAmount) {
+    float dx = blurAmount * (1.0 / u_resolution.x);
+    float dy = blurAmount * (1.0 / u_resolution.y);
+    
+    vec3 sum = vec3(0.0);
+    sum += texture2D(tex, uv + vec2(-dx, -dy)).rgb * 0.0625;
+    sum += texture2D(tex, uv + vec2(0.0, -dy)).rgb * 0.125;
+    sum += texture2D(tex, uv + vec2(dx, -dy)).rgb * 0.0625;
+    sum += texture2D(tex, uv + vec2(-dx, 0.0)).rgb * 0.125;
+    sum += texture2D(tex, uv).rgb * 0.25;
+    sum += texture2D(tex, uv + vec2(dx, 0.0)).rgb * 0.125;
+    sum += texture2D(tex, uv + vec2(-dx, dy)).rgb * 0.0625;
+    sum += texture2D(tex, uv + vec2(0.0, dy)).rgb * 0.125;
+    sum += texture2D(tex, uv + vec2(dx, dy)).rgb * 0.0625;
+    
+    return sum;
+  }
+
+  void main() {
+    vec2 uv = v_uv;
+    float screenAspect = u_resolution.x / u_resolution.y;
+    float ratio = u_imageAspect / screenAspect;
+
+    vec2 texCoord = vec2(
+      mix(0.5 - 0.5 / ratio, 0.5 + 0.5 / ratio, uv.x),
+      uv.y
+    );
+
+    vec4 tex = texture2D(u_texture, texCoord);
+    vec3 originalColor = tex.rgb;
+    vec3 effectColor = originalColor;
+    
+    if (u_effectType == 1) {
+      float gray = dot(originalColor, vec3(0.299, 0.587, 0.114));
+      effectColor = vec3(gray);
+    } 
+    else if (u_effectType == 2) {
+      effectColor = applySepia(originalColor);
+    }
+    else if (u_effectType == 3) {
+      effectColor = applyDuotone(originalColor, u_effectColor1, u_effectColor2);
+    }
+    else if (u_effectType == 4) {
+      effectColor = applyPixelate(u_texture, texCoord, u_effectIntensity * 20.0);
+    }
+    else if (u_effectType == 5) {
+      effectColor = applyBlur(u_texture, texCoord, u_effectIntensity * 5.0);
+    }
+    
+    vec2 correctedUV = uv;
+    correctedUV.x *= screenAspect;
+    vec2 correctedMouse = u_mouse;
+    correctedMouse.x *= screenAspect;
+
+    float dist = distance(correctedUV, correctedMouse);
+    
+    float marbleEffect = inkMarbling(uv * 2.0 + u_time * u_speed * 0.1, u_time, u_turbulenceIntensity * 2.0);
+    float jaggedDist = dist + (marbleEffect - 0.5) * u_turbulenceIntensity * 2.0;
+    
+    float mask = u_radius > 0.001 ? step(jaggedDist, u_radius) : 0.0;
+
+    vec3 invertedColor = vec3(0.0);
+    if (u_hasHoverTexture) {
+      vec4 hoverTex = texture2D(u_hoverTexture, texCoord);
+      invertedColor = hoverTex.rgb;
+    } else if (u_effectType == 0) {
+      float gray = dot(originalColor, vec3(0.299, 0.587, 0.114));
+      invertedColor = vec3(1.0 - gray);
+    } else {
+      invertedColor = originalColor;
+    }
+
+    vec3 finalColor;
+    if (u_invertMask) {
+      finalColor = mix(invertedColor, effectColor, mask);
+    } else {
+      finalColor = mix(effectColor, invertedColor, mask);
+    }
+    
+    gl_FragColor = vec4(finalColor, 1.0);
+  }
+`;
 
 export interface WoofyHoverImageProps {
   src: string;
@@ -54,215 +263,6 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
   const isMouseInsideRef = useRef(false);
   const targetMouseRef = useRef(new THREE.Vector2(0.5, 0.5));
   const lerpedMouseRef = useRef(new THREE.Vector2(0.5, 0.5));
-
-  const vertexShader = `
-    varying vec2 v_uv;
-    
-    void main() {
-      v_uv = uv;
-      gl_Position = vec4(position, 1.0);
-    }
-  `;
-
-  const fragmentShader = `
-    precision highp float;
-
-    uniform sampler2D u_texture;
-    uniform sampler2D u_hoverTexture;
-    uniform bool u_hasHoverTexture;
-    uniform vec2 u_mouse;
-    uniform float u_time;
-    uniform vec2 u_resolution;
-    uniform float u_radius;
-    uniform float u_speed;
-    uniform float u_imageAspect;
-    uniform float u_turbulenceIntensity;
-    uniform int u_effectType;
-    uniform vec3 u_effectColor1;
-    uniform vec3 u_effectColor2;
-    uniform float u_effectIntensity;
-    uniform bool u_invertMask;
-
-    varying vec2 v_uv;
-
-    vec3 hash33(vec3 p) {
-      p = fract(p * vec3(443.8975, 397.2973, 491.1871));
-      p += dot(p.zxy, p.yxz + 19.27);
-      return fract(vec3(p.x * p.y, p.z * p.x, p.y * p.z));
-    }
-
-    float simplex_noise(vec3 p) {
-      const float K1 = 0.333333333;
-      const float K2 = 0.166666667;
-      
-      vec3 i = floor(p + (p.x + p.y + p.z) * K1);
-      vec3 d0 = p - (i - (i.x + i.y + i.z) * K2);
-      
-      vec3 e = step(vec3(0.0), d0 - d0.yzx);
-      vec3 i1 = e * (1.0 - e.zxy);
-      vec3 i2 = 1.0 - e.zxy * (1.0 - e);
-      
-      vec3 d1 = d0 - (i1 - K2);
-      vec3 d2 = d0 - (i2 - K2 * 2.0);
-      vec3 d3 = d0 - (1.0 - 3.0 * K2);
-      
-      vec3 x0 = d0;
-      vec3 x1 = d1;
-      vec3 x2 = d2;
-      vec3 x3 = d3;
-      
-      vec4 h = max(0.6 - vec4(dot(x0, x0), dot(x1, x1), dot(x2, x2), dot(x3, x3)), 0.0);
-      vec4 n = h * h * h * h * vec4(
-        dot(x0, hash33(i) * 2.0 - 1.0),
-        dot(x1, hash33(i + i1) * 2.0 - 1.0),
-        dot(x2, hash33(i + i2) * 2.0 - 1.0),
-        dot(x3, hash33(i + 1.0) * 2.0 - 1.0)
-      );
-      
-      return 0.5 + 0.5 * 31.0 * dot(n, vec4(1.0));
-    }
-
-    vec2 curl(vec2 p, float time) {
-      const float epsilon = 0.001;
-      
-      float n1 = simplex_noise(vec3(p.x, p.y + epsilon, time));
-      float n2 = simplex_noise(vec3(p.x, p.y - epsilon, time));
-      float n3 = simplex_noise(vec3(p.x + epsilon, p.y, time));
-      float n4 = simplex_noise(vec3(p.x - epsilon, p.y, time));
-      
-      float x = (n2 - n1) / (2.0 * epsilon);
-      float y = (n4 - n3) / (2.0 * epsilon);
-      
-      return vec2(x, y);
-    }
-
-    float inkMarbling(vec2 p, float time, float intensity) {
-      float result = 0.0;
-      
-      vec2 flow = curl(p * 1.5, time * 0.1) * intensity * 2.0;
-      vec2 p1 = p + flow * 0.3;
-      result += simplex_noise(vec3(p1 * 2.0, time * 0.15)) * 0.5;
-      
-      vec2 flow2 = curl(p * 3.0 + vec2(sin(time * 0.2), cos(time * 0.15)), time * 0.2) * intensity;
-      vec2 p2 = p + flow2 * 0.2;
-      result += simplex_noise(vec3(p2 * 4.0, time * 0.25)) * 0.3;
-      
-      vec2 flow3 = curl(p * 6.0 + vec2(cos(time * 0.3), sin(time * 0.25)), time * 0.3) * intensity * 0.5;
-      vec2 p3 = p + flow3 * 0.1;
-      result += simplex_noise(vec3(p3 * 8.0, time * 0.4)) * 0.2;
-      
-      float dist = length(p - vec2(0.5));
-      float angle = atan(p.y - 0.5, p.x - 0.5);
-      float spiral = sin(dist * 15.0 - angle * 2.0 + time * 0.3) * 0.5 + 0.5;
-      
-      result = mix(result, spiral, 0.3);
-      result = result * 0.5 + 0.5;
-      
-      return result;
-    }
-
-    vec3 applySepia(vec3 color) {
-      float r = color.r * 0.393 + color.g * 0.769 + color.b * 0.189;
-      float g = color.r * 0.349 + color.g * 0.686 + color.b * 0.168;
-      float b = color.r * 0.272 + color.g * 0.534 + color.b * 0.131;
-      return vec3(r, g, b);
-    }
-
-    vec3 applyDuotone(vec3 color, vec3 color1, vec3 color2) {
-      float gray = dot(color, vec3(0.299, 0.587, 0.114));
-      return mix(color1, color2, gray);
-    }
-
-    vec3 applyPixelate(sampler2D tex, vec2 uv, float pixelSize) {
-      float dx = pixelSize * (1.0 / u_resolution.x);
-      float dy = pixelSize * (1.0 / u_resolution.y);
-      vec2 pixelatedUV = vec2(dx * floor(uv.x / dx), dy * floor(uv.y / dy));
-      return texture2D(tex, pixelatedUV).rgb;
-    }
-
-    vec3 applyBlur(sampler2D tex, vec2 uv, float blurAmount) {
-      float dx = blurAmount * (1.0 / u_resolution.x);
-      float dy = blurAmount * (1.0 / u_resolution.y);
-      
-      vec3 sum = vec3(0.0);
-      sum += texture2D(tex, uv + vec2(-dx, -dy)).rgb * 0.0625;
-      sum += texture2D(tex, uv + vec2(0.0, -dy)).rgb * 0.125;
-      sum += texture2D(tex, uv + vec2(dx, -dy)).rgb * 0.0625;
-      sum += texture2D(tex, uv + vec2(-dx, 0.0)).rgb * 0.125;
-      sum += texture2D(tex, uv).rgb * 0.25;
-      sum += texture2D(tex, uv + vec2(dx, 0.0)).rgb * 0.125;
-      sum += texture2D(tex, uv + vec2(-dx, dy)).rgb * 0.0625;
-      sum += texture2D(tex, uv + vec2(0.0, dy)).rgb * 0.125;
-      sum += texture2D(tex, uv + vec2(dx, dy)).rgb * 0.0625;
-      
-      return sum;
-    }
-
-    void main() {
-      vec2 uv = v_uv;
-      float screenAspect = u_resolution.x / u_resolution.y;
-      float ratio = u_imageAspect / screenAspect;
-
-      vec2 texCoord = vec2(
-        mix(0.5 - 0.5 / ratio, 0.5 + 0.5 / ratio, uv.x),
-        uv.y
-      );
-
-      vec4 tex = texture2D(u_texture, texCoord);
-      vec3 originalColor = tex.rgb;
-      vec3 effectColor = originalColor;
-      
-      if (u_effectType == 1) {
-        float gray = dot(originalColor, vec3(0.299, 0.587, 0.114));
-        effectColor = vec3(gray);
-      } 
-      else if (u_effectType == 2) {
-        effectColor = applySepia(originalColor);
-      }
-      else if (u_effectType == 3) {
-        effectColor = applyDuotone(originalColor, u_effectColor1, u_effectColor2);
-      }
-      else if (u_effectType == 4) {
-        effectColor = applyPixelate(u_texture, texCoord, u_effectIntensity * 20.0);
-      }
-      else if (u_effectType == 5) {
-        effectColor = applyBlur(u_texture, texCoord, u_effectIntensity * 5.0);
-      }
-      
-      vec2 correctedUV = uv;
-      correctedUV.x *= screenAspect;
-      vec2 correctedMouse = u_mouse;
-      correctedMouse.x *= screenAspect;
-
-      float dist = distance(correctedUV, correctedMouse);
-      
-      float marbleEffect = inkMarbling(uv * 2.0 + u_time * u_speed * 0.1, u_time, u_turbulenceIntensity * 2.0);
-      float jaggedDist = dist + (marbleEffect - 0.5) * u_turbulenceIntensity * 2.0;
-      
-      float mask = u_radius > 0.001 ? step(jaggedDist, u_radius) : 0.0;
-
-      vec3 invertedColor = vec3(0.0);
-      if (u_hasHoverTexture) {
-        vec4 hoverTex = texture2D(u_hoverTexture, texCoord);
-        invertedColor = hoverTex.rgb;
-      } else if (u_effectType == 0) {
-        float gray = dot(originalColor, vec3(0.299, 0.587, 0.114));
-        invertedColor = vec3(1.0 - gray);
-      } else {
-        invertedColor = originalColor;
-      }
-
-      vec3 finalColor;
-      if (u_invertMask) {
-        finalColor = mix(invertedColor, effectColor, mask);
-      } else {
-        finalColor = mix(effectColor, invertedColor, mask);
-      }
-      
-      gl_FragColor = vec4(finalColor, 1.0);
-    }
-  `;
-
   const getEffectTypeValue = (type: string): number => {
     switch (type) {
       case 'blackwhite': return 1;
@@ -403,7 +403,7 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
         setupScene();
       }
     });
-  }, [src, hoverSrc, effectType, maskRadius, turbulenceIntensity, animationSpeed, effectIntensity, invertMask, duotoneColor1, duotoneColor2]);
+  }, [src, hoverSrc, effectType, turbulenceIntensity, animationSpeed, effectIntensity, invertMask, duotoneColor1, duotoneColor2]);
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!containerRef.current || !uniformsRef.current) return;
@@ -464,6 +464,7 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
   }, [maskRadius, appearDuration, disappearDuration, onHover, onLeave]);
 
   useEffect(() => {
+    const container = containerRef.current;
     initializeEffect();
 
     document.addEventListener('mousemove', handleMouseMove, { passive: true });
@@ -488,8 +489,8 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
       if (rendererRef.current) {
         rendererRef.current.dispose();
       }
-      if (containerRef.current && (containerRef.current as any)._observer) {
-        (containerRef.current as any)._observer.disconnect();
+      if (container && (container as any)._observer) {
+        (container as any)._observer.disconnect();
       }
     };
   }, [initializeEffect, handleMouseMove]);
@@ -501,10 +502,11 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
         items-center justify-center`, className)}
       style={{ width, height }}
     >
-      <img
+      <Image
         src={src}
         alt={alt}
-        className="w-full h-full object-cover"
+        fill
+        className="object-cover"
         style={{ position: 'relative', zIndex: 0 }}
       />
     </div>
