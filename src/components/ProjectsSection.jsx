@@ -29,7 +29,7 @@ const projects = [
 
 export default function ProjectsSection() {
   return (
-    <section className="w-full bg-white pt-24 pb-8 flex flex-col items-center justify-center overflow-clip">
+    <section id="projects" className="w-full bg-white pt-24 pb-8 flex flex-col items-center justify-center overflow-clip">
       <div className="text-center mb-16">
         <div className="flex items-center justify-center gap-4 mb-4">
           <div className="h-px w-12 bg-gray-300"></div>
@@ -42,7 +42,7 @@ export default function ProjectsSection() {
       <div className="w-full max-w-4xl mx-auto px-4 md:px-8">
         <GsapScrollStack>
           {projects.map((proj, i) => (
-            <div key={i} className="relative w-full h-[75vh] md:h-[70vh] rounded-[40px] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-gray-50 flex flex-col md:flex-row">
+            <div key={i} id={proj.title.toLowerCase().replace(/\s+/g, '-')} className="relative w-full h-[75vh] md:h-[70vh] rounded-[40px] overflow-hidden border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] bg-gray-50 flex flex-col md:flex-row">
               
               {/* Text Section: 65% height on mobile (order 2), 30% width on desktop (order 1) */}
               <div className="order-2 md:order-1 h-[65%] md:h-full w-full md:w-[30%] p-6 md:p-12 flex flex-col justify-center bg-white">

@@ -8,7 +8,7 @@ import DotField from "./DotField";
 export default function LetsConnect() {
 
   return (
-    <section className="relative w-full bg-white pt-8 pb-24 flex flex-col items-center justify-center overflow-hidden">
+    <section id="contact" className="relative w-full bg-white pt-8 pb-24 flex flex-col items-center justify-center overflow-hidden">
       {/* Backgrounds */}
       <div className="absolute inset-0 z-0 pointer-events-none opacity-60">
         <DotField 

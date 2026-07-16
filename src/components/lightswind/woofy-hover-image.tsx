@@ -507,7 +507,7 @@ const WoofyHoverImage: React.FC<WoofyHoverImageProps> = ({
         alt={alt}
         fill
         className="object-cover"
-        style={{ position: 'relative', zIndex: 0 }}
+        style={{ zIndex: 0 }}
       />
     </div>
   );
